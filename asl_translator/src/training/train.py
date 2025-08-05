@@ -9,6 +9,7 @@ from tqdm import tqdm
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models.cnn_lstm import ASLTranslator, ASLDataLoader
+from models.resnet50_bilstm import ResNet50BiLSTM
 
 class ASLDataset(Dataset):
     def __init__(self, data_dir, transform=None):
@@ -33,6 +34,36 @@ class ASLDataset(Dataset):
         frames = loader.load_video()
         label = self.class_to_idx[class_name]
         return frames, label
+
+def collate_fn_padd(batch):
+    # Find the maximum length of sequences in the batch (first dimension)
+    max_len = max([item[0].size(0) for item in batch])
+
+    # Find the maximum size of the last dimension across all tensors in the batch
+    max_last_dim = max([item[0].size(-1) for item in batch])
+
+
+    # Pad the sequences to the maximum length and the last dimension to the maximum size
+    padded_inputs = []
+    labels = []
+    for inputs, label in batch:
+        padding_size_seq = max_len - inputs.size(0)
+        padding_size_last_dim = max_last_dim - inputs.size(-1)
+
+        # Pad the first dimension (sequence length) and the last dimension
+        # The padding order is (pad_left_dim_0, pad_right_dim_0, pad_left_dim_1, pad_right_dim_1, ...)
+        # Since we only want to pad the first and last dimensions on the right, the padding tuple is (0, padding_size_last_dim, 0, 0, 0, 0, 0, padding_size_seq) for a 4D tensor
+        # However, the documentation for F.pad is (pad_left, pad_right, pad_top, pad_bottom, pad_front, pad_back) for 3D, and it extends for higher dimensions.
+        # For a 4D tensor [seq_len, channels, height, width], padding (last_dim, second_to_last_dim, ...)
+        # We want to pad the first dimension (seq_len) and the last dimension (width)
+        # The padding order for a 4D tensor is (pad_left_dim3, pad_right_dim3, pad_left_dim2, pad_right_dim2, pad_left_dim1, pad_right_dim1, pad_left_dim0, pad_right_dim0)
+        # So to pad the first (seq_len) and last (width) dimensions on the right: (0, padding_size_last_dim, 0, 0, 0, 0, 0, padding_size_seq)
+        padded_input = torch.nn.functional.pad(inputs, (0, padding_size_last_dim, 0, 0, 0, 0, 0, padding_size_seq))
+        padded_inputs.append(padded_input)
+        labels.append(label)
+
+    # Stack the padded inputs and labels
+    return torch.stack(padded_inputs), torch.tensor(labels)
 
 def train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs, device):
     best_val_acc = 0.0
@@ -104,7 +135,7 @@ def main():
     ])
     
     # Create datasets
-    data_dir = 'data/raw'
+    data_dir = 'data/processed'
     dataset = ASLDataset(data_dir, transform=transform)
     
     # Split dataset
@@ -113,12 +144,12 @@ def main():
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size])
     
     # Create data loaders
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=8, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4, collate_fn=collate_fn_padd)
+    val_loader = DataLoader(val_dataset, batch_size=8, shuffle=False, num_workers=4, collate_fn=collate_fn_padd)
     
     # Initialize model
     num_classes = len(dataset.classes)
-    model = ASLTranslator(num_classes=num_classes).to(device)
+    model = ResNet50BiLSTM(num_classes=num_classes).to(device)
     
     # Loss function and optimizer
     criterion = nn.CrossEntropyLoss()
