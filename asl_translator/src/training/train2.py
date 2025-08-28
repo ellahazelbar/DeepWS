@@ -269,12 +269,6 @@ def main():
         if args.val_on_train:
             val_dataset = train_dataset  # validate on the same tiny set
 
-        # Make memorization easier
-        if args.epochs < 300:
-            args.epochs = 300
-        if args.batch_size > 8:
-            args.batch_size = 8
-
     # Loaders
     train_loader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True,
