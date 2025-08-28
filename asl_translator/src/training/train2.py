@@ -41,7 +41,6 @@ class ASLDataset(Dataset):
 
     def __len__(self):
         return len(self.samples)
-
     def __getitem__(self, idx):
         video_path, class_name = self.samples[idx]
         loader = ASLDataLoader(video_path, self.transform)
@@ -208,8 +207,8 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
 def parse_args():
     p = argparse.ArgumentParser(description="ASL training with overfit/memorization harness")
     # Core
-    p.add_argument("--data_dir", type=str, default="data/processed")
-    p.add_argument("--model", type=str, default="resnet50_bilstm", choices=["resnet50_bilstm", "cnn_lstm"])
+    p.add_argument("--data_dir", type=str, default="/content/my_project/DeepWS-main/asl_translator/src/data/processed")
+    p.add_argument("--model", type=str, default="resnet50_bilstm", choices=["resnet50_bilstm", "cnn_lstm", "attention_resnet50"])
     p.add_argument("--epochs", type=int, default=50)
     p.add_argument("--batch_size", type=int, default=8)
     p.add_argument("--lr", type=float, default=1e-3)
