@@ -10,6 +10,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models.cnn_lstm import ASLTranslator, ASLDataLoader
 from models.resnet50_bilstm import ResNet50BiLSTM
+from models.keypoint_bilstm import KeypointBiLSTM
 
 class ASLDataset(Dataset):
     def __init__(self, data_dir, transform=None):
@@ -31,9 +32,8 @@ class ASLDataset(Dataset):
     def __getitem__(self, idx):
         video_path, class_name = self.samples[idx]
         file = open(video_path, 'rb')
-        frames = np.frombuffer(file.read(), dtype=np.float32)
+        frames = np.copy(np.frombuffer(file.read(), dtype=np.float32))
         frames = frames.reshape(1662, frames.size // 1662)
-        x = 3
         label = self.class_to_idx[class_name]
         return frames, label
 
@@ -114,7 +114,7 @@ def main():
     
     # Initialize model
     num_classes = len(dataset.classes)
-    model = ResNet50BiLSTM(num_classes=num_classes).to(device)
+    model = KeypointBiLSTM(num_classes, 1662).to(device)
     
     # Loss function and optimizer
     criterion = nn.CrossEntropyLoss()

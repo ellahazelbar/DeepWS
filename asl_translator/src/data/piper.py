@@ -10,15 +10,10 @@ transform = transforms.Compose([
         transforms.ToPILImage(),
         transforms.ToTensor(),
 ])
+mp_holistic = mp.solutions.holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) #holistic model
 
-data_dir = 'asl_translator/src/data/processed'
-output_dir = 'asl_translator/src/data/piped'
-mp_holistic = mp.solutions.holistic #holistic model
-
-max_frames = -1
 
 def preprocess_video(input_path):
-    global max_frames
     cap = cv2.VideoCapture(input_path)
     fps = round(cap.get(cv2.CAP_PROP_FPS))
     if fps not in [24, 25, 30]:
@@ -29,11 +24,9 @@ def preprocess_video(input_path):
     elif fps == 25:
         frames_multiplier = 1.1666666666666
     framecount = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-    eventual_framecount = int(framecount * frames_multiplier)
-    if max_frames < eventual_framecount:
-        max_frames = eventual_framecount
+    return int(framecount * frames_multiplier)
 
-def process_video(input_path, output_path, mp_model):
+def process_video(input_path, max_frames):
     cap = cv2.VideoCapture(input_path)
     fps = round(cap.get(cv2.CAP_PROP_FPS))
     if fps not in [24, 25, 30]:
@@ -46,27 +39,32 @@ def process_video(input_path, output_path, mp_model):
         repeat_freq = 5
     repeat_counter = 0
 
-    output = open(output_path, 'wb')
-    frames = 0
+    
+    frames = []
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        keypoints = extract_keypoints(mp_model.process(frame))
-        np.asarray(keypoints, dtype=np.float32).tofile(output)
-        frames += 1
+        keypoints = extract_keypoints(mp_holistic.process(frame))
+        frames.append(np.asarray(keypoints, dtype=np.float32))
+
         repeat_counter += 1
         if (repeat_freq == repeat_counter):
             repeat_counter = 0
-            np.asarray(keypoints, dtype=np.float32).tofile(output)
-            frames += 1
+            frames.append(np.asarray(keypoints, dtype=np.float32))
+
     cap.release()
     pad = np.asarray(np.zeros(1662), dtype=np.float32)
-    while (frames < max_frames):
-        pad.tofile(output)
-        frames += 1
+    while (len(frames) < max_frames):
+        frames.append(pad)
+    return frames
 
+def save_video(frames, output_path):
+    output = open(output_path, 'wb')
+    for frame in frames:
+        frame.tofile(output)
+    output.close()
 
 def extract_keypoints(result):
     pose = np.array([[res.x, res.y, res.z, res.visibility] for res in result.pose_landmarks.landmark]).flatten() if result.pose_landmarks else np.zeros(132)
@@ -76,14 +74,19 @@ def extract_keypoints(result):
     
     return np.concatenate([pose, right_hand, left_hand, face])
 
-for class_name in sorted(os.listdir(data_dir)):            
-    class_dir = os.path.join(data_dir, class_name)
-    for video_file in os.listdir(class_dir):
-        if video_file.endswith(('.mp4', '.avi', '.mov')):
-            input_path = os.path.join(class_dir, video_file)
-            preprocess_video(input_path)
-x = 3
-with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:#detection is initial detection 
+def pipe_videos():
+    max_frames = 0
+    data_dir = 'asl_translator/src/data/processed'
+    output_dir = 'asl_translator/src/data/piped'
+    for class_name in sorted(os.listdir(data_dir)):            
+        class_dir = os.path.join(data_dir, class_name)
+        for video_file in os.listdir(class_dir):
+            if video_file.endswith(('.mp4', '.avi', '.mov')):
+                input_path = os.path.join(class_dir, video_file)
+                framecount = preprocess_video(input_path, max_frames)
+                if max_frames < framecount:
+                    max_frames = framecount
+
     for class_name in sorted(os.listdir(data_dir)):            
         class_dir = os.path.join(data_dir, class_name)
         for video_file in os.listdir(class_dir):
@@ -91,9 +94,10 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
                 noext, _ = os.path.splitext(video_file)
                 input_path = os.path.join(class_dir, video_file)
                 output_path = os.path.join(output_dir, class_name, noext + ".piped")
-                process_video(input_path, output_path, holistic)
+                save_video(process_video(input_path, max_frames), output_path)
                     
 
-
+if __name__ == "__main__":
+    pipe_videos()
 
 

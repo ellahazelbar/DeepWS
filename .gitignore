@@ -1,6 +1,7 @@
 # Videos
 *data/raw*
 *.zip
+*.piped
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
