@@ -293,7 +293,7 @@ def train_model(model: nn.Module, train_loader: DataLoader, val_loader: DataLoad
     """Train model with improved monitoring and early stopping."""
     
     best_val_acc = 0.0
-    scaler = GradScaler() if use_amp and device.type == 'cuda' else None
+    scaler = GradScaler('cuda') if use_amp and device.type == 'cuda' else None
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='max', factor=0.5, patience=5, verbose=True
     )
@@ -318,7 +318,7 @@ def train_model(model: nn.Module, train_loader: DataLoader, val_loader: DataLoad
             optimizer.zero_grad()
             
             if scaler is not None:
-                with autocast():
+                with autocast("cuda"):
                     outputs = model(inputs)
                     loss = criterion(outputs, labels)
                 
@@ -360,7 +360,7 @@ def train_model(model: nn.Module, train_loader: DataLoader, val_loader: DataLoad
                 labels = labels.to(device, non_blocking=True)
 
                 if scaler is not None:
-                    with autocast():
+                    with autocast('cuda'):
                         outputs = model(inputs)
                         loss = criterion(outputs, labels)
                 else:
