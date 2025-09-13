@@ -1,3 +1,7 @@
+# # #
+# This is the old enrichment module,
+# No longer used because mediapipe does not care about bw/mirror
+
 import os
 import shutil
 import json

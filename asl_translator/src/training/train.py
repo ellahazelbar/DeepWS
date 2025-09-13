@@ -33,7 +33,7 @@ class ASLDataset(Dataset):
         video_path, class_name = self.samples[idx]
         file = open(video_path, 'rb')
         frames = np.copy(np.frombuffer(file.read(), dtype=np.float32))
-        frames = frames.reshape(1662, frames.size // 1662)
+        frames = frames.reshape(1629, frames.size // 1629)
         label = self.class_to_idx[class_name]
         return frames, label
 
@@ -114,7 +114,7 @@ def main():
     
     # Initialize model
     num_classes = len(dataset.classes)
-    model = KeypointBiLSTM(num_classes, 1662).to(device)
+    model = KeypointBiLSTM(num_classes, 1629).to(device)
     
     # Loss function and optimizer
     criterion = nn.CrossEntropyLoss()

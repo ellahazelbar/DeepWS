@@ -9,8 +9,8 @@ class KeypointBiLSTM(nn.Module):
     Accepts input shaped (B, T, D) or (B, D, T). If given (B, D, T), it will
     automatically transpose to (B, T, D) using a simple heuristic:
       - The smaller of the two last dimensions is treated as feature_dim (D),
-        and the larger as time_len (T). This fits common cases like (B, 1662, 133)
-        or (B, 133, 1662) without code changes.
+        and the larger as time_len (T). This fits common cases like (B, 1629, 131)
+        or (B, 131, 1629) without code changes.
 
     Args:
         num_classes: number of output classes.
@@ -99,19 +99,3 @@ class KeypointBiLSTM(nn.Module):
 
         logits = self.classifier(self.dropout(pooled))  # (B, num_classes)
         return logits
-
-
-if __name__ == "__main__":
-    # Quick shape checks
-    B = 4
-    # Case 1: (B, 1662, 133)
-    m = KeypointBiLSTM(num_classes=10)
-    a = torch.randn(B, 1662, 133)
-    o = m(a)
-    print("Case1:", o.shape)
-
-    # Case 2: (B, 133, 1662)
-    m2 = KeypointBiLSTM(num_classes=10)
-    b = torch.randn(B, 133, 1662)
-    o2 = m2(b)
-    print("Case2:", o2.shape)
