@@ -125,7 +125,14 @@ def record_and_process_video():
 
 def centralize_and_normalize_landmark(landmark):
     # for each column (x,y, or z), normalize to a standard distribution
-    return (landmark - landmark.mean(0)) / landmark.std(0) 
+    landmark = landmark - landmark.mean(0)
+    st = landmark.std(0)
+    for i in range(3):
+        if abs(st[i]) < 0.0000001:
+            st[i] = 1
+    return landmark / st
+    
+        
 
 def extract_keypoints(result):
     pose = np.array([[res.x, res.y, res.z] for res in result.pose_landmarks.landmark]) if result.pose_landmarks else np.zeros((33,3))

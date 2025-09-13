@@ -11,6 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models.cnn_lstm import ASLTranslator, ASLDataLoader
 from models.resnet50_bilstm import ResNet50BiLSTM
 from models.keypoint_bilstm import KeypointBiLSTM
+import math
 
 class ASLDataset(Dataset):
     def __init__(self, data_dir, transform=None):
@@ -33,7 +34,10 @@ class ASLDataset(Dataset):
         video_path, class_name = self.samples[idx]
         file = open(video_path, 'rb')
         frames = np.copy(np.frombuffer(file.read(), dtype=np.float32))
-        frames = frames.reshape(1629, frames.size // 1629)
+        try:
+            frames = frames.reshape(1629, frames.size // 1629)
+        except Exception as e:
+            print(e)
         label = self.class_to_idx[class_name]
         return frames, label
 
@@ -56,6 +60,8 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
+            if math.isnan(loss.item()):
+                x = 3
             loss.backward()
             optimizer.step()
             
@@ -91,7 +97,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
         val_acc = 100. * val_correct / val_total
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            torch.save(model.state_dict(), 'models/best_model.pth')
+            torch.save(model.state_dict(), 'asl_translator/src/models/best_model.pth')
             print(f'New best model saved with validation accuracy: {val_acc:.2f}%')
 
 def main():
@@ -100,7 +106,7 @@ def main():
     print(f'Using device: {device}')
     
     # Create datasets
-    data_dir = 'asl_translator/src/data/piped'
+    data_dir = 'asl_translator/src/data/piped_std'
     dataset = ASLDataset(data_dir)
     
     # Split dataset
@@ -109,8 +115,8 @@ def main():
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size])
     
     # Create data loaders
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=8, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=train_size, shuffle=False, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=val_size, shuffle=False, num_workers=4)
     
     # Initialize model
     num_classes = len(dataset.classes)
