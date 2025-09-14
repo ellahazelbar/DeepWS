@@ -147,17 +147,22 @@ def draw_landmarks(image, res):
 
 def pipe_videos():
     max_frames = 0
-    vid_clss = []
-    data_dir = 'asl_translator/src/data/naomi_videos'
+    vids = []
+    data_dir = 'asl_translator/src/data/daniela'
     output_dir = 'asl_translator/src/data/piped_std_naomi'
     for class_name in sorted(os.listdir(data_dir)):     
         os.makedirs(os.path.join(output_dir, class_name), exist_ok=True)
         class_dir = os.path.join(data_dir, class_name)
         for video_file in os.listdir(class_dir):
             if video_file.endswith(('.mp4', '.avi', '.mov')):
-                vid_clss.append((video_file, class_name))
+                noext, _ = os.path.splitext(video_file)
+                input_path = os.path.join(class_dir, video_file)
+                output_path_base = os.path.join(output_dir, class_name, noext)
+                if (os.path.exists(output_path_base + ".piped") and os.path.exists(output_path_base + "_mirrored.piped")):
+                    continue
+                vids.append((video_file, class_name))
 
-    prog_bar = tqdm(vid_clss, desc="Prep")
+    prog_bar = tqdm(vids, desc="Prep")
     for (video_file, class_name) in prog_bar:
         input_path = os.path.join(data_dir, class_name, video_file)
         framecount = preprocess_video(input_path)
@@ -165,13 +170,14 @@ def pipe_videos():
             max_frames = framecount
         prog_bar.set_postfix({'max_fr': max_frames})
     print("max frames:", max_frames)
-    prog_bar = tqdm(vid_clss, desc="Proc")
+    if (max_frames != FRAME_COUNT):
+        print(f"Changing max_frames to {FRAME_COUNT}. Please ensure that this is the correct value.")
+    max_frames = FRAME_COUNT
+    prog_bar = tqdm(vids, desc="Proc")
     for (video_file, class_name) in prog_bar:
         noext, _ = os.path.splitext(video_file)
         input_path = os.path.join(data_dir, class_name, video_file)
         output_path_base = os.path.join(output_dir, class_name, noext)
-        if (os.path.exists(output_path_base + ".piped") and os.path.exists(output_path_base + "_mirrored.piped")):
-            continue
         prog_bar.set_postfix({'filename': noext})
         save_video(process_video(input_path, max_frames), output_path_base)
                     
