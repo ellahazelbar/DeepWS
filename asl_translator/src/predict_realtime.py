@@ -33,7 +33,7 @@ def predict_sign(frames, model_path, num_classes=3):
     return ['change', 'cousin', 'trade'] [predicted.item()]
 
 def main():
-    print(predict_sign(record_and_process_video(), 'asl_translator/src/models/50_epoch_best_model.pth'))
+    print(predict_sign(record_and_process_video(), 'asl_translator/src/models/best_model_gd.pth'))
 
 if __name__ == '__main__':
     main() 

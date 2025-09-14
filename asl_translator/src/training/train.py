@@ -3,13 +3,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
 import numpy as np
 from tqdm import tqdm
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from models.cnn_lstm import ASLTranslator, ASLDataLoader
-from models.resnet50_bilstm import ResNet50BiLSTM
 from models.keypoint_bilstm import KeypointBiLSTM
 import math
 from data.piper import KEYPOINTS_SIZE
@@ -35,6 +32,7 @@ class ASLDataset(Dataset):
         video_path, class_name = self.samples[idx]
         file = open(video_path, 'rb')
         frames = np.copy(np.frombuffer(file.read(), dtype=np.float32))
+        file.close()
         try:
             frames = frames.reshape(KEYPOINTS_SIZE, frames.size // KEYPOINTS_SIZE)
         except Exception as e:

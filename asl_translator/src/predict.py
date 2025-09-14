@@ -38,7 +38,7 @@ def predict_sign(video_path, model_path, num_classes=3):
 def main():
     parser = argparse.ArgumentParser(description='ASL Sign Prediction')
     parser.add_argument('video_path', type=str, help='Path to the input video file')
-    parser.add_argument('--model_path', type=str, default='asl_translator/src/models/best_model.pth',
+    parser.add_argument('--model_path', type=str, default='asl_translator/src/models/best_model_gd.pth',
                       help='Path to the trained model weights')
     parser.add_argument('--num_classes', type=int, default=3,
                       help='Number of classes in the model')
