@@ -139,18 +139,12 @@ def extract_keypoints(result):
     return centralize_and_normalize_landmark(everything).flatten()
 
 def draw_landmarks(image, res):
-    mp_drawing.draw_landmarks(image,res.face_landmarks, mp.solutions.holistic.FACEMESH_TESSELATION,
-                              mp_drawing.DrawingSpec(color=(80,110,10), thickness=1, circle_radius=1),
-                              mp_drawing.DrawingSpec(color=(80,256,121), thickness=1, circle_radius=1)) 
-    mp_drawing.draw_landmarks(image,res.pose_landmarks, mp.solutions.holistic.POSE_CONNECTIONS,
-                              mp_drawing.DrawingSpec(color=(80,110,10), thickness=2, circle_radius=3),
-                              mp_drawing.DrawingSpec(color=(80,256,121), thickness=2, circle_radius=2)) 
-    mp_drawing.draw_landmarks(image,res.left_hand_landmarks, mp.solutions.holistic.HAND_CONNECTIONS,
-                              mp_drawing.DrawingSpec(color=(80,110,10), thickness=2, circle_radius=3),
-                              mp_drawing.DrawingSpec(color=(80,256,121), thickness=2, circle_radius=2)) 
-    mp_drawing.draw_landmarks(image,res.right_hand_landmarks, mp.solutions.holistic.HAND_CONNECTIONS,
-                              mp_drawing.DrawingSpec(color=(80,110,10), thickness=2, circle_radius=3),
-                              mp_drawing.DrawingSpec(color=(80,256,121), thickness=2, circle_radius=2)) 
+    landmark_spec = mp_drawing.DrawingSpec(color=(80,110,10), thickness=1, circle_radius=1)
+    connection_spec = mp_drawing.DrawingSpec(color=(80,256,121), thickness=1, circle_radius=1)
+    mp_drawing.draw_landmarks(image,res.face_landmarks, mp.solutions.holistic.FACEMESH_TESSELATION, landmark_spec, connection_spec)
+    mp_drawing.draw_landmarks(image,res.pose_landmarks, mp.solutions.holistic.POSE_CONNECTIONS, landmark_spec, connection_spec)
+    mp_drawing.draw_landmarks(image,res.left_hand_landmarks, mp.solutions.holistic.HAND_CONNECTIONS, landmark_spec, connection_spec)
+    mp_drawing.draw_landmarks(image,res.right_hand_landmarks, mp.solutions.holistic.HAND_CONNECTIONS, landmark_spec, connection_spec)
 
 
 def pipe_videos():
