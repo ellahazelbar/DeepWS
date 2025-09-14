@@ -49,9 +49,10 @@ class ASLTranslator(nn.Module):
         return output
 
 class ASLDataLoader:
-    def __init__(self, video_path, transform=None):
+    def __init__(self, video_path, transform=None, is_mirrored=False):
         self.video_path = video_path
         self.transform = transform
+        self.is_mirrored = is_mirrored
         
     def load_video(self):
         """
@@ -72,7 +73,11 @@ class ASLDataLoader:
                 
             # Convert BGR to RGB
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
+
+            # Apply horizontal flip if needed
+            if self.is_mirrored:
+                frame = cv2.flip(frame, 1)  # Horizontal flip
+
             if self.transform:
                 frame = self.transform(frame)
                 
@@ -82,4 +87,4 @@ class ASLDataLoader:
         
         # Stack frames into a tensor
         frames = torch.stack(frames)
-        return frames 
+        return frames
