@@ -21,13 +21,10 @@ transform = transforms.Compose([
 mp_holistic = mp.solutions.holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) #holistic model
 mp_drawing = mp.solutions.drawing_utils 
 
-supported_framerates = [24, 25, 26, 29, 30, 31]
-
 def preprocess_video(input_path):
     cap = cv2.VideoCapture(input_path)
     fps = round(cap.get(cv2.CAP_PROP_FPS))
-    if fps not in supported_framerates:
-        raise("Unsupported framerate")
+
     frames_multiplier = 30 / fps
     framecount = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     cap.release()
@@ -36,14 +33,14 @@ def preprocess_video(input_path):
 def process_video(input_path, max_frames):
     cap = cv2.VideoCapture(input_path)
     fps = round(cap.get(cv2.CAP_PROP_FPS))
-    if fps not in supported_framerates:
-        raise("Unsupported framerate")
     
-    repeat_freq = 100000000
+    repeat_or_skip_freq = 100000000
     if fps < 30:
-        repeat_freq = int(round(1 / (30 / fps - 1)))
+        #repeat every nth frame to simulate 30 fps
+        repeat_or_skip_freq = int(round(1 / (30 / fps - 1)))
     if fps > 30:
-        repeat_freq = int(round(30 / (fps - 30))) + 1
+        #skip every nth frame to simulate 30 fps
+        repeat_or_skip_freq = int(round(30 / (fps - 30))) + 1
 
     
     repeat_counter = 0
@@ -53,14 +50,14 @@ def process_video(input_path, max_frames):
         if not ret:
             break
         repeat_counter += 1
-        if (fps > 30 and repeat_freq == repeat_counter):
+        if (fps > 30 and repeat_or_skip_freq == repeat_counter):
             repeat_counter = 0
             continue
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         keypoints = extract_keypoints(mp_holistic.process(frame))
         frames.append(np.asarray(keypoints, dtype=np.float32))
 
-        if (repeat_freq == repeat_counter):
+        if (repeat_or_skip_freq == repeat_counter):
             repeat_counter = 0
             frames.append(np.asarray(keypoints, dtype=np.float32))
 
