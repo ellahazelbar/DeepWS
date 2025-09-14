@@ -179,6 +179,8 @@ def pipe_videos():
         noext, _ = os.path.splitext(video_file)
         input_path = os.path.join(data_dir, class_name, video_file)
         output_path_base = os.path.join(output_dir, class_name, noext)
+        if (os.path.exists(output_path_base + ".piped") and os.path.exists(output_path_base + "_mirrored.piped")):
+            continue
         prog_bar.set_postfix({'filename': noext})
         save_video(process_video(input_path, max_frames), output_path_base)
                     
