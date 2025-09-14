@@ -27,17 +27,7 @@ def preprocess_video(input_path):
     fps = round(cap.get(cv2.CAP_PROP_FPS))
     if fps not in supported_framerates:
         raise("Unsupported framerate")
-    frames_multiplier = 1
-    if fps == 24:
-        frames_multiplier = 1.25
-    elif fps == 25:
-        frames_multiplier = 1.1666666666666
-    elif fps == 26:
-        frames_multiplier = 9/8
-    elif fps == 29:
-        frames_multiplier = 30/29
-    elif fps == 31:
-        frames_multiplier = 30 / 31
+    frames_multiplier = 30 / fps
     framecount = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     cap.release()
     return int(framecount * frames_multiplier)
@@ -49,19 +39,13 @@ def process_video(input_path, max_frames):
         raise("Unsupported framerate")
     
     repeat_freq = 100000000
-    if fps == 24:
-        repeat_freq = 4
-    elif fps == 25:
-        repeat_freq = 5
-    elif fps == 26:
-        repeat_counter = 7
-    elif fps == 29:
-        repeat_freq = 29
-    elif fps == 31:
-        repeat_freq = 31
-    repeat_counter = 0
+    if fps < 30:
+        repeat_freq = int(round(1 / (30 / fps - 1)))
+    if fps > 30:
+        repeat_freq = int(round(30 / (fps - 30))) + 1
 
     
+    repeat_counter = 0
     frames = []
     while cap.isOpened():
         ret, frame = cap.read()
