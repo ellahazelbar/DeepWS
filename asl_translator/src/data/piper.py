@@ -11,6 +11,8 @@ import numpy as np
 import time
 from tqdm import tqdm
 
+KEYPOINTS_SIZE = 231
+
 transform = transforms.Compose([
         transforms.ToPILImage(),
         transforms.ToTensor(),
@@ -78,7 +80,7 @@ def process_video(input_path, max_frames):
             frames.append(np.asarray(keypoints, dtype=np.float32))
 
     cap.release()
-    pad = np.asarray(np.zeros(1629), dtype=np.float32)
+    pad = np.asarray(np.zeros(KEYPOINTS_SIZE), dtype=np.float32)
     while (len(frames) < max_frames):
         frames.append(pad)
     return frames
@@ -118,10 +120,11 @@ def record_and_process_video():
         elapsed = time.time() - start
         cv2.waitKey(max(round(1000 * (1 / 30 - elapsed)), 1))
     while (len(frames) < 131):
-        frames.append(np.zeros(1629))
+        frames.append(np.zeros(KEYPOINTS_SIZE))
         
     cap.release()
     cv2.destroyAllWindows()
+    return frames
 
 def centralize_and_normalize_landmark(landmark):
     # for each column (x,y, or z), normalize to a standard distribution
@@ -131,7 +134,15 @@ def centralize_and_normalize_landmark(landmark):
         if abs(st[i]) < 0.0000001:
             st[i] = 1
     return landmark / st
-    
+
+def face_AABB(face_points):
+    # AABB stands for axis-aligned bounding box
+    # Row 0 is min, row 1 is max
+    aabb = np.zeros((2,3))
+    for i in range(face_points.shape[0]):
+        aabb[0] = np.min(np.stack([aabb[0], face_points[i]], 0), axis=0)
+        aabb[1] = np.max(np.stack([aabb[1], face_points[i]], 0), axis=0)
+    return aabb
         
 
 def extract_keypoints(result):
@@ -139,21 +150,21 @@ def extract_keypoints(result):
     face = np.array([[res.x, res.y, res.z] for res in result.face_landmarks.landmark]) if result.face_landmarks else np.zeros((468,3))
     left_hand = np.array([[res.x, res.y, res.z] for res in result.left_hand_landmarks.landmark]) if result.left_hand_landmarks else np.zeros((21,3))
     right_hand = np.array([[res.x, res.y, res.z] for res in result.right_hand_landmarks.landmark]) if result.right_hand_landmarks else np.zeros((21,3))
-    everything = np.concatenate((pose, face, left_hand, right_hand), axis=0)
+    everything = np.concatenate((face_AABB(face), pose, left_hand, right_hand), axis=0)
     
     return centralize_and_normalize_landmark(everything).flatten()
 
 def draw_landmarks(image, res):
-    mp_drawing.draw_landmarks(image,res.face_landmarks, mp_holistic.FACEMESH_TESSELATION,
+    mp_drawing.draw_landmarks(image,res.face_landmarks, mp.solutions.holistic.FACEMESH_TESSELATION,
                               mp_drawing.DrawingSpec(color=(80,110,10), thickness=1, circle_radius=1),
                               mp_drawing.DrawingSpec(color=(80,256,121), thickness=1, circle_radius=1)) 
-    mp_drawing.draw_landmarks(image,res.pose_landmarks, mp_holistic.POSE_CONNECTIONS,
+    mp_drawing.draw_landmarks(image,res.pose_landmarks, mp.solutions.holistic.POSE_CONNECTIONS,
                               mp_drawing.DrawingSpec(color=(80,110,10), thickness=2, circle_radius=3),
                               mp_drawing.DrawingSpec(color=(80,256,121), thickness=2, circle_radius=2)) 
-    mp_drawing.draw_landmarks(image,res.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS,
+    mp_drawing.draw_landmarks(image,res.left_hand_landmarks, mp.solutions.holistic.HAND_CONNECTIONS,
                               mp_drawing.DrawingSpec(color=(80,110,10), thickness=2, circle_radius=3),
                               mp_drawing.DrawingSpec(color=(80,256,121), thickness=2, circle_radius=2)) 
-    mp_drawing.draw_landmarks(image,res.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS,
+    mp_drawing.draw_landmarks(image,res.right_hand_landmarks, mp.solutions.holistic.HAND_CONNECTIONS,
                               mp_drawing.DrawingSpec(color=(80,110,10), thickness=2, circle_radius=3),
                               mp_drawing.DrawingSpec(color=(80,256,121), thickness=2, circle_radius=2)) 
 

@@ -2,15 +2,12 @@ import torch
 import torch.nn as nn
 from typing import Optional, Tuple
 
+
 class KeypointBiLSTM(nn.Module):
     """
     BiLSTM classifier for Mediapipe/landmark feature sequences.
 
-    Accepts input shaped (B, T, D) or (B, D, T). If given (B, D, T), it will
-    automatically transpose to (B, T, D) using a simple heuristic:
-      - The smaller of the two last dimensions is treated as feature_dim (D),
-        and the larger as time_len (T). This fits common cases like (B, 1629, 131)
-        or (B, 131, 1629) without code changes.
+    Accepts input shaped (B, D, T). 
 
     Args:
         num_classes: number of output classes.
@@ -71,7 +68,6 @@ class KeypointBiLSTM(nn.Module):
     def _to_B_T_D(self, x: torch.Tensor) -> torch.Tensor:
         # Accept (B, D, T); convert to (B, T, D)
         assert x.dim() == 3, f"Expected 3D input (B,D,T), got {x.shape}"
-        B, A, B2 = x.shape
         # x is (B, D, T) -> transpose to (B, T, D)
         x = x.transpose(1, 2).contiguous()
         # else assume already (B, T, D)

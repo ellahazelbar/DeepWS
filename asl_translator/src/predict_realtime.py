@@ -1,6 +1,6 @@
 import torch
 from models.keypoint_bilstm import KeypointBiLSTM
-from data.piper import record_and_process_video
+from data.piper import record_and_process_video, KEYPOINTS_SIZE
 
 def predict_sign(frames, model_path, num_classes=3):
     """
@@ -18,7 +18,7 @@ def predict_sign(frames, model_path, num_classes=3):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # Load model
-    model = KeypointBiLSTM(num_classes, 1629).to(device)
+    model = KeypointBiLSTM(num_classes, KEYPOINTS_SIZE).to(device)
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
 
