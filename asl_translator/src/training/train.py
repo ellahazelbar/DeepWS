@@ -10,6 +10,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models.cnn_lstm import ASLTranslator, ASLDataLoader
 from models.resnet50_bilstm import ResNet50BiLSTM
+from models.keypoint_bilstm import KeypointBiLSTM
+import math
 
 class ASLDataset(Dataset):
     def __init__(self, data_dir, transform=None):
@@ -22,7 +24,7 @@ class ASLDataset(Dataset):
         for class_name in self.classes:
             class_dir = os.path.join(data_dir, class_name)
             for video_file in os.listdir(class_dir):
-                if video_file.endswith(('.mp4', '.avi', '.mov')):
+                if video_file.endswith('.piped'):
                     self.samples.append((os.path.join(class_dir, video_file), class_name))
     
     def __len__(self):
@@ -30,40 +32,14 @@ class ASLDataset(Dataset):
     
     def __getitem__(self, idx):
         video_path, class_name = self.samples[idx]
-        loader = ASLDataLoader(video_path, self.transform)
-        frames = loader.load_video()
+        file = open(video_path, 'rb')
+        frames = np.copy(np.frombuffer(file.read(), dtype=np.float32))
+        try:
+            frames = frames.reshape(1629, frames.size // 1629)
+        except Exception as e:
+            print(e)
         label = self.class_to_idx[class_name]
         return frames, label
-
-def collate_fn_padd(batch):
-    # Find the maximum length of sequences in the batch (first dimension)
-    max_len = max([item[0].size(0) for item in batch])
-
-    # Find the maximum size of the last dimension across all tensors in the batch
-    max_last_dim = max([item[0].size(-1) for item in batch])
-
-
-    # Pad the sequences to the maximum length and the last dimension to the maximum size
-    padded_inputs = []
-    labels = []
-    for inputs, label in batch:
-        padding_size_seq = max_len - inputs.size(0)
-        padding_size_last_dim = max_last_dim - inputs.size(-1)
-
-        # Pad the first dimension (sequence length) and the last dimension
-        # The padding order is (pad_left_dim_0, pad_right_dim_0, pad_left_dim_1, pad_right_dim_1, ...)
-        # Since we only want to pad the first and last dimensions on the right, the padding tuple is (0, padding_size_last_dim, 0, 0, 0, 0, 0, padding_size_seq) for a 4D tensor
-        # However, the documentation for F.pad is (pad_left, pad_right, pad_top, pad_bottom, pad_front, pad_back) for 3D, and it extends for higher dimensions.
-        # For a 4D tensor [seq_len, channels, height, width], padding (last_dim, second_to_last_dim, ...)
-        # We want to pad the first dimension (seq_len) and the last dimension (width)
-        # The padding order for a 4D tensor is (pad_left_dim3, pad_right_dim3, pad_left_dim2, pad_right_dim2, pad_left_dim1, pad_right_dim1, pad_left_dim0, pad_right_dim0)
-        # So to pad the first (seq_len) and last (width) dimensions on the right: (0, padding_size_last_dim, 0, 0, 0, 0, 0, padding_size_seq)
-        padded_input = torch.nn.functional.pad(inputs, (0, padding_size_last_dim, 0, 0, 0, 0, 0, padding_size_seq))
-        padded_inputs.append(padded_input)
-        labels.append(label)
-
-    # Stack the padded inputs and labels
-    return torch.stack(padded_inputs), torch.tensor(labels)
 
 def train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs, device):
     best_val_acc = 0.0
@@ -75,14 +51,17 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
         correct = 0
         total = 0
         
-        train_pbar = tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs} [Train]')
-        for inputs, labels in train_pbar:
+        #tqdm creates a progress bar out of a finite interable
+        train_progress_bar = tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs} [Train]')
+        for inputs, labels in train_progress_bar:
             inputs = inputs.to(device)
             labels = labels.to(device)
             
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
+            if math.isnan(loss.item()):
+                x = 3
             loss.backward()
             optimizer.step()
             
@@ -91,7 +70,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
             
-            train_pbar.set_postfix({'loss': running_loss/total, 'acc': 100.*correct/total})
+            train_progress_bar.set_postfix({'loss': running_loss/total, 'acc': 100.*correct/total})
         
         # Validation phase
         model.eval()
@@ -118,7 +97,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
         val_acc = 100. * val_correct / val_total
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            torch.save(model.state_dict(), 'models/best_model.pth')
+            torch.save(model.state_dict(), 'asl_translator/src/models/best_model.pth')
             print(f'New best model saved with validation accuracy: {val_acc:.2f}%')
 
 def main():
@@ -126,17 +105,9 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}')
     
-    # Data transforms
-    transform = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
-    
     # Create datasets
-    data_dir = 'data/processed'
-    dataset = ASLDataset(data_dir, transform=transform)
+    data_dir = 'asl_translator/src/data/piped_std'
+    dataset = ASLDataset(data_dir)
     
     # Split dataset
     train_size = int(0.8 * len(dataset))
@@ -144,12 +115,12 @@ def main():
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size])
     
     # Create data loaders
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4, collate_fn=collate_fn_padd)
-    val_loader = DataLoader(val_dataset, batch_size=8, shuffle=False, num_workers=4, collate_fn=collate_fn_padd)
+    train_loader = DataLoader(train_dataset, batch_size=train_size, shuffle=False, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=val_size, shuffle=False, num_workers=4)
     
     # Initialize model
     num_classes = len(dataset.classes)
-    model = ResNet50BiLSTM(num_classes=num_classes).to(device)
+    model = KeypointBiLSTM(num_classes, 1629).to(device)
     
     # Loss function and optimizer
     criterion = nn.CrossEntropyLoss()
