@@ -3,7 +3,7 @@ import sys
 import torch
 import argparse
 from models.keypoint_bilstm import KeypointBiLSTM
-from data.piper import process_video, KEYPOINTS_SIZE
+from data.piper import process_video, KEYPOINTS_SIZE, FRAME_COUNT
 import numpy as np
 
 def predict_sign(video_path, model_path, num_classes=3):
@@ -26,7 +26,7 @@ def predict_sign(video_path, model_path, num_classes=3):
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
 
-    frames = torch.FloatTensor([process_video(video_path, 131)]).transpose(1,2).to(device)
+    frames = torch.FloatTensor([process_video(video_path, FRAME_COUNT)]).transpose(1,2).to(device)
     print(frames.shape)
     # Get prediction
     with torch.no_grad():

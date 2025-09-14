@@ -12,6 +12,7 @@ import time
 from tqdm import tqdm
 
 KEYPOINTS_SIZE = 231
+FRAME_COUNT = 139
 
 transform = transforms.Compose([
         transforms.ToPILImage(),
@@ -88,7 +89,7 @@ def record_and_process_video():
         ret, frame = cap.read()
         
         frames.append(np.copy(frame))
-        if 131 < len(frames):
+        if FRAME_COUNT < len(frames):
             frames.pop(0)
         cv2.imshow('OpenCV Feed', frame)
 
@@ -103,7 +104,7 @@ def record_and_process_video():
         frames[i] = extract_keypoints(res)
         elapsed = time.time() - start
         cv2.waitKey(max(round(1000 * (1 / 30 - elapsed)), 1))
-    while (len(frames) < 131):
+    while (len(frames) < FRAME_COUNT):
         frames.append(np.zeros(KEYPOINTS_SIZE))
         
     cap.release()
@@ -156,18 +157,24 @@ def draw_landmarks(image, res):
 def pipe_videos():
     max_frames = 0
     vid_clss = []
-    data_dir = 'asl_translator/src/data/all'
-    output_dir = 'asl_translator/src/data/piped_std'
-    for class_name in sorted(os.listdir(data_dir)):            
+    data_dir = 'asl_translator/src/data/naomi_videos'
+    output_dir = 'asl_translator/src/data/piped_std_naomi'
+    for class_name in sorted(os.listdir(data_dir)):     
+        os.makedirs(os.path.join(output_dir, class_name), exist_ok=True)
         class_dir = os.path.join(data_dir, class_name)
         for video_file in os.listdir(class_dir):
             if video_file.endswith(('.mp4', '.avi', '.mov')):
-                input_path = os.path.join(class_dir, video_file)
-                framecount = preprocess_video(input_path)
                 vid_clss.append((video_file, class_name))
-                if max_frames < framecount:
-                    max_frames = framecount
-    prog_bar = tqdm(vid_clss)
+
+    prog_bar = tqdm(vid_clss, desc="Prep")
+    for (video_file, class_name) in prog_bar:
+        input_path = os.path.join(data_dir, class_name, video_file)
+        framecount = preprocess_video(input_path)
+        if max_frames < framecount:
+            max_frames = framecount
+        prog_bar.set_postfix({'max_fr': max_frames})
+    print("max frames:", max_frames)
+    prog_bar = tqdm(vid_clss, desc="Proc")
     for (video_file, class_name) in prog_bar:
         noext, _ = os.path.splitext(video_file)
         input_path = os.path.join(data_dir, class_name, video_file)
